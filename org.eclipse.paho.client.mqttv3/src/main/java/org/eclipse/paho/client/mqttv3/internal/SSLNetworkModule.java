@@ -18,6 +18,8 @@ package org.eclipse.paho.client.mqttv3.internal;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.NoClassDefFoundError;
+import java.lang.NoSuchMethodError;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SNIHostName;
@@ -132,19 +134,27 @@ public class SSLNetworkModule extends TCPNetworkModule {
 		int soTimeout = socket.getSoTimeout();
 		// RTC 765: Set a timeout to avoid the SSL handshake being blocked indefinitely
 		socket.setSoTimeout(this.handshakeTimeoutSecs * 1000);
-		
+
 		// SNI support.  Should be automatic under some circumstances - not all, apparently
-		SSLParameters sslParameters = new SSLParameters();
-		List<SNIServerName> sniHostNames = new ArrayList<SNIServerName>(1);
-		sniHostNames.add(new SNIHostName(host));
-		sslParameters.setServerNames(sniHostNames);
-		((SSLSocket)socket).setSSLParameters(sslParameters);
+		try {
+			SSLParameters sslParameters = new SSLParameters();
+			List<SNIServerName> sniHostNames = new ArrayList<SNIServerName>(1);
+			sniHostNames.add(new SNIHostName(host));
+			sslParameters.setServerNames(sniHostNames);
+			((SSLSocket)socket).setSSLParameters(sslParameters);
+		} catch(NoClassDefFoundError e) {
+			// Android < 7.0
+		}
 
 		// If default Hostname verification is enabled, use the same method that is used with HTTPS
 		if(this.httpsHostnameVerificationEnabled) {
-			SSLParameters sslParams = new SSLParameters();
-			sslParams.setEndpointIdentificationAlgorithm("HTTPS");
-			((SSLSocket) socket).setSSLParameters(sslParams);
+			try {
+				SSLParameters sslParams = new SSLParameters();
+				sslParams.setEndpointIdentificationAlgorithm("HTTPS");
+				((SSLSocket) socket).setSSLParameters(sslParams);
+			} catch(NoSuchMethodError e) {
+				// Android < 7.0
+			}
 		}
 		((SSLSocket) socket).startHandshake();
 		if (hostnameVerifier != null && !this.httpsHostnameVerificationEnabled) {
